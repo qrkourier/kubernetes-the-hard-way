@@ -38,16 +38,16 @@ sudo mv step_0.20.0/bin/step /usr/local/bin/
 Now create a `step` user and the paths for `step-ca`:
 
 ```
-sudo useradd --system --home /etc/step-ca --shell /bin/false step
+sudo useradd --system --home /etc/step-ca --create-home --shell /bin/false step
 ```
 
 Create a CA configuration folder and generate passwords for the CA root key and the CA provisioner:
 
 ```
 {
-export STEPPATH=/etc/step-ca
+export STEPPATH=$(step path)
 umask 077
-< /dev/urandom tr -dc A-Za-z0-9 | head -c40 | sudo tee $(step path)/password > /dev/null
+< /dev/urandom tr -dc A-Za-z0-9 | head -c40 | sudo tee ${STEPPATH}/password > /dev/null
 < /dev/urandom tr -dc A-Za-z0-9 | head -c40  > provisioner-password
 umask 002
 }
@@ -72,10 +72,10 @@ sudo -E step ca init --name="admin" \
 Add an X509 certificate template file:
 
 ```
-mkdir -p /etc/step-ca/templates/x509
+sudo mkdir -p $(step path)/templates/x509
 
 # Server cert template.
-cat <<EOF > /etc/step-ca/templates/x509/kubernetes.tpl
+sudo tee /etc/step-ca/templates/x509/kubernetes.tpl <<EOF
 {
     "subject": {
 {{- if .Insecure.User.Organization }}
@@ -99,7 +99,7 @@ Configure the CA provisioner to issue 90-day certificates:
 
 ```
 {
-cat <<< $(jq '(.authority.provisioners[] | select(.name == "kubernetes")) += {
+sudo tee /etc/step-ca/config/ca.json <<< $(sudo jq '(.authority.provisioners[] | select(.name == "kubernetes")) += {
             "claims": {
                "maxTLSCertDuration": "2160h",
                "defaultTLSCertDuration": "2160h"
@@ -112,7 +112,7 @@ cat <<< $(jq '(.authority.provisioners[] | select(.name == "kubernetes")) += {
                         }
                 }
         }
-    }' /etc/step-ca/config/ca.json) > /etc/step-ca/config/ca.json
+    }' /etc/step-ca/config/ca.json)
 }
 ```
 
